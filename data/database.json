@@ -1,0 +1,57 @@
+{
+  "users": [
+    {
+      "id": "user_superadmin_01",
+      "username": "admin",
+      "name": "المدير العام (Super Admin)",
+      "role": "super_admin",
+      "scope": "all",
+      "permissions": [
+        "view_servants",
+        "add_servant",
+        "edit_servant",
+        "delete_servant",
+        "view_servant_details",
+        "view_users",
+        "add_user",
+        "edit_user",
+        "disable_user",
+        "delete_user",
+        "view_services",
+        "add_service",
+        "edit_service",
+        "delete_service",
+        "view_attendance",
+        "add_attendance",
+        "edit_attendance",
+        "delete_attendance",
+        "view_reports",
+        "export_reports",
+        "view_history",
+        "manage_permissions",
+        "manage_roles",
+        "full_access"
+      ],
+      "status": "active",
+      "created_at": "2026-09-17T11:02:24.149Z",
+      "updated_at": "2026-09-17T11:02:24.150Z",
+      "password_hash": "$2b$10$ZkX2Ublse6gfSA8hvwNpdOby3zOXU9YFbKR8zCCwDKg1BhsEfF/wm"
+    }
+  ],
+  "servants": [],
+  "services": [],
+  "assignments": [],
+  "attendance": [],
+  "audit_logs": [
+    {
+      "id": "audit_system_init",
+      "username": "system",
+      "action": "SYSTEM_INITIALIZATION",
+      "target_type": "SYSTEM",
+      "target_name": "نظام إدارة خدام الكنيسة",
+      "description": "تمت تهيئة قاعدة البيانات بنجاح بحساب المدير العام فقط (Super Admin) دون أي خدمات أو خدام افتراضية - جاهز لإضافة خدمات الكنيسة",
+      "timestamp": "2026-09-17T11:27:00.000Z"
+    }
+  ],
+  "rate_limits": {}
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Church Servants Management System",
+  "description": "نظام إدارة خدام الكنيسة - كنيسة الشهيد العظيم مارجرجس بمنية شبين القناطر",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
