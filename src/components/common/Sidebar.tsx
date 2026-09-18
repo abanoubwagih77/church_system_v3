@@ -6,6 +6,7 @@ import {
   Users,
   Layers,
   CalendarCheck,
+  Calendar,
   ShieldCheck,
   History,
   FileSpreadsheet,
@@ -47,6 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: t('nav_servants'),
       icon: Users,
       visible: hasPermission('view_servants'),
+    },
+    {
+      id: 'meetings',
+      label: 'اجتماعات الخدام',
+      icon: Calendar,
+      visible: hasPermission('view_attendance'),
     },
     {
       id: 'attendance',

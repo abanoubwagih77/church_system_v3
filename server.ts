@@ -12,6 +12,7 @@ import { usersRouter } from './server/routes/users.js';
 import { auditRouter } from './server/routes/audit.js';
 import { reportsRouter } from './server/routes/reports.js';
 import { scannerRouter } from './server/routes/scanner.js';
+import { meetingsRouter } from './server/routes/meetings.js';
 
 async function startServer() {
   // Initialize local atomic DB
@@ -44,6 +45,7 @@ async function startServer() {
   app.use('/api/audit', auditRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/scanner', scannerRouter);
+  app.use('/api/meetings', meetingsRouter);
 
   // Vite Middleware in Dev vs Static in Production
   if (process.env.NODE_ENV !== 'production') {

@@ -11,6 +11,7 @@ import {
   ScannerDevice,
   DeviceRegistrationCode,
   GeneralMeetingRecord,
+  GeneralMeeting,
 } from '../src/types/index.js';
 
 export interface DatabaseSchema {
@@ -23,6 +24,7 @@ export interface DatabaseSchema {
   scanner_devices: ScannerDevice[];
   registration_codes: DeviceRegistrationCode[];
   general_meeting_records: GeneralMeetingRecord[];
+  general_meetings: GeneralMeeting[];
   rate_limits: Record<string, { count: number; reset_time: number }>;
 }
 
@@ -44,6 +46,17 @@ export function initDatabase(): void {
       if (!dbData.scanner_devices) dbData.scanner_devices = [];
       if (!dbData.registration_codes) dbData.registration_codes = [];
       if (!dbData.general_meeting_records) dbData.general_meeting_records = [];
+      if (!dbData.general_meetings) dbData.general_meetings = [];
+
+      // If admin user exists and password is old default, or explicitly update admin password to 'admin'
+      const adminUser = dbData.users?.find((u) => u.username.toLowerCase() === 'admin');
+      if (adminUser && !bcrypt.compareSync('admin', adminUser.password_hash || '')) {
+        // If password is still admin123456 or initial, set to 'admin' as requested
+        if (bcrypt.compareSync('admin123456', adminUser.password_hash || '')) {
+          adminUser.password_hash = bcrypt.hashSync('admin', bcrypt.genSaltSync(10));
+          saveDatabase();
+        }
+      }
       return;
     } catch (e) {
       console.error('Failed to read existing database.json, initializing fresh', e);
@@ -52,7 +65,7 @@ export function initDatabase(): void {
 
   // Initialize state with strictly ONLY Super Admin user, 0 services, and 0 servants
   const defaultSalt = bcrypt.genSaltSync(10);
-  const defaultHash = bcrypt.hashSync('admin123456', defaultSalt);
+  const defaultHash = bcrypt.hashSync('admin', defaultSalt);
 
   const superAdminUser: User = {
     id: 'user_superadmin_01',
@@ -113,6 +126,7 @@ export function initDatabase(): void {
     scanner_devices: [],
     registration_codes: [],
     general_meeting_records: [],
+    general_meetings: [],
     rate_limits: {},
   };
 

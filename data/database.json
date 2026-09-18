@@ -3,8 +3,9 @@
     {
       "id": "user_superadmin_01",
       "username": "admin",
-      "name": "المدير العام (Super Admin)",
+      "name": "أبانوب وجيه",
       "role": "super_admin",
+      "church_role_title": "أمين الخدمة العام",
       "scope": "all",
       "permissions": [
         "view_servants",
@@ -35,14 +36,43 @@
       "status": "active",
       "created_at": "2026-09-17T11:02:24.149Z",
       "updated_at": "2026-09-17T11:02:24.150Z",
-      "password_hash": "$2b$10$ZkX2Ublse6gfSA8hvwNpdOby3zOXU9YFbKR8zCCwDKg1BhsEfF/wm"
+      "password_hash": "$2b$10$L0bnzdaBOnEHo9R2PZ5dROGaMagcV3MIFQYG6kf5vGqj8X94pmKdK",
+      "last_login": "2026-09-18T07:32:40.304Z"
     }
   ],
   "servants": [],
   "services": [],
   "assignments": [],
   "attendance": [],
+  "general_meetings": [],
+  "general_meeting_records": [],
+  "scanner_devices": [],
+  "registration_codes": [],
   "audit_logs": [
+    {
+      "id": "audit_1789716760308_xtryh",
+      "user_id": "user_superadmin_01",
+      "username": "admin",
+      "action": "USER_LOGIN",
+      "target_type": "USER",
+      "target_id": "user_superadmin_01",
+      "target_name": "أبانوب وجيه",
+      "description": "قام المستخدم (أبانوب وجيه) بتسجيل الدخول إلى لوحة الإدارة بنجاح",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-18T07:32:40.308Z"
+    },
+    {
+      "id": "audit_1789716353446_h4k0q",
+      "user_id": "user_superadmin_01",
+      "username": "admin",
+      "action": "USER_LOGOUT",
+      "target_type": "USER",
+      "target_id": "user_superadmin_01",
+      "target_name": "أبانوب وجيه",
+      "description": "قام المستخدم (أبانوب وجيه) بتسجيل الخروج من النظام",
+      "ip_address": "156.201.165.90",
+      "timestamp": "2026-09-18T07:25:53.446Z"
+    },
     {
       "id": "audit_system_init",
       "username": "system",

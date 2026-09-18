@@ -159,6 +159,49 @@ authRouter.post('/change-password', authenticateJwt, (req: AuthenticatedRequest,
   }
 });
 
+// Update Profile & Church Role Title
+authRouter.put('/profile', authenticateJwt, (req: AuthenticatedRequest, res: Response) => {
+  const user = req.user!;
+  const { name, church_role_title, role } = req.body;
+
+  const db = getDb();
+  const dbUser = db.users.find((u) => u.id === user.id);
+  if (!dbUser) {
+    res.status(404).json({ error: 'المستخدم غير موجود' });
+    return;
+  }
+
+  if (name && typeof name === 'string' && name.trim()) {
+    dbUser.name = name.trim();
+  }
+
+  if (church_role_title !== undefined) {
+    const trimmed = String(church_role_title || '').trim();
+    dbUser.church_role_title = trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (role && typeof role === 'string') {
+    dbUser.role = role as any;
+  }
+
+  dbUser.updated_at = new Date().toISOString();
+  saveDatabase();
+
+  logAudit({
+    userId: user.id,
+    username: user.username,
+    action: 'USER_UPDATED',
+    targetType: 'USER',
+    targetId: user.id,
+    targetName: dbUser.name,
+    description: `قام المستخدم (${dbUser.name}) بتحديث بيانات ملفه الشخصي ورتبته الكنسية إلى (${dbUser.church_role_title || dbUser.role})`,
+    ipAddress: getClientIp(req),
+  });
+
+  const { password_hash, ...safeUser } = dbUser;
+  res.json({ success: true, user: safeUser });
+});
+
 // Force change password on first login
 authRouter.post('/force-change-password', authenticateJwt, (req: AuthenticatedRequest, res: Response) => {
   const { new_password } = req.body;

@@ -140,7 +140,7 @@ usersRouter.get('/', requirePermission('view_users'), (req: AuthenticatedRequest
 usersRouter.post('/', requirePermission('add_user'), (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
   const db = getDb();
-  const { username, password, name, role, scope, permissions, linked_servant_id } = req.body;
+  const { username, password, name, role, scope, permissions, linked_servant_id, church_role_title } = req.body;
 
   if (!username || !password || !name || !role) {
     res.status(400).json({ error: 'اسم المستخدم، كلمة المرور، الاسم الكامل، والدور حقول مطلوبة' });
@@ -176,6 +176,7 @@ usersRouter.post('/', requirePermission('add_user'), (req: AuthenticatedRequest,
     username: cleanUsername,
     name: name.trim(),
     role: roleType,
+    church_role_title: church_role_title ? String(church_role_title).trim() : undefined,
     scope: scope || 'all',
     permissions: userPermissions,
     linked_servant_id: linked_servant_id || undefined,
@@ -227,7 +228,7 @@ usersRouter.put('/:id', requirePermission('edit_user'), (req: AuthenticatedReque
     return;
   }
 
-  const { name, role, scope, permissions, linked_servant_id, status } = req.body;
+  const { name, role, scope, permissions, linked_servant_id, status, church_role_title } = req.body;
 
   const prevRole = targetUser.role;
   const prevPermissions = [...targetUser.permissions];
@@ -235,6 +236,10 @@ usersRouter.put('/:id', requirePermission('edit_user'), (req: AuthenticatedReque
 
   if (name) targetUser.name = name.trim();
   if (role) targetUser.role = role as RoleType;
+  if (church_role_title !== undefined) {
+    const trimmed = String(church_role_title || '').trim();
+    targetUser.church_role_title = trimmed.length > 0 ? trimmed : undefined;
+  }
   if (scope !== undefined) targetUser.scope = scope;
   if (linked_servant_id !== undefined) targetUser.linked_servant_id = linked_servant_id || undefined;
   if (status) targetUser.status = status;

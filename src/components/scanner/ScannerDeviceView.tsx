@@ -20,8 +20,11 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { api } from '../../services/api.js';
 
 interface ScanResultData {
-  action_type: 'check_in' | 'check_out' | 'duplicate_warning';
+  action_type: 'check_in' | 'check_out' | 'duplicate_warning' | 'late_absent' | 'priest_exempt';
   message: string;
+  meeting_title?: string;
+  cutoff_time?: string;
+  is_priest?: boolean;
   servant?: {
     id: string;
     full_name: string;
@@ -245,11 +248,13 @@ export const ScannerDeviceView: React.FC<{ onBackToMain?: () => void }> = ({ onB
       setScanHistory((prev) => [res, ...prev.slice(0, 19)]);
       fetchMeetingStats();
 
-      if (res.action_type === 'check_in') {
+      if (res.action_type === 'check_in' || res.action_type === 'priest_exempt') {
         playBeep('check_in');
         confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
       } else if (res.action_type === 'check_out') {
         playBeep('check_out');
+      } else if (res.action_type === 'late_absent') {
+        playBeep('error');
       } else if (res.action_type === 'duplicate_warning') {
         playBeep('warning');
       }
@@ -598,6 +603,10 @@ export const ScannerDeviceView: React.FC<{ onBackToMain?: () => void }> = ({ onB
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100'
                     : scanResult.action_type === 'check_out'
                     ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-100'
+                    : scanResult.action_type === 'late_absent'
+                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100'
+                    : scanResult.action_type === 'priest_exempt'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100'
                     : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100'
                 }`}
               >
@@ -607,6 +616,12 @@ export const ScannerDeviceView: React.FC<{ onBackToMain?: () => void }> = ({ onB
                   )}
                   {scanResult.action_type === 'check_out' && (
                     <CheckCircle2 className="w-6 h-6 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  )}
+                  {scanResult.action_type === 'late_absent' && (
+                    <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  )}
+                  {scanResult.action_type === 'priest_exempt' && (
+                    <CheckCircle2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                   )}
                   {scanResult.action_type === 'duplicate_warning' && (
                     <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -619,13 +634,25 @@ export const ScannerDeviceView: React.FC<{ onBackToMain?: () => void }> = ({ onB
                           ? 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200'
                           : scanResult.action_type === 'check_out'
                           ? 'bg-blue-200/80 text-blue-900 dark:bg-blue-900 dark:text-blue-200'
+                          : scanResult.action_type === 'late_absent'
+                          ? 'bg-rose-200/90 text-rose-950 dark:bg-rose-900 dark:text-rose-100'
+                          : scanResult.action_type === 'priest_exempt'
+                          ? 'bg-indigo-200/90 text-indigo-950 dark:bg-indigo-900 dark:text-indigo-100'
                           : 'bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-200'
                       }`}
                     >
                       {scanResult.action_type === 'check_in' && '✅ تسجيل حضور (دخول)'}
                       {scanResult.action_type === 'check_out' && '🚪 تسجيل انصراف (خروج)'}
+                      {scanResult.action_type === 'late_absent' && '⚠️ غياب (تأخر بعد الموعد المحدد)'}
+                      {scanResult.action_type === 'priest_exempt' && '🕊️ أب كاهن (معفى من كشف الحضور)'}
                       {scanResult.action_type === 'duplicate_warning' && '⚠️ تسجيل مكرر'}
                     </span>
+
+                    {scanResult.meeting_title && (
+                      <div className="text-[11px] font-medium text-stone-600 dark:text-stone-300 mb-1">
+                        الاجتماع: <span className="font-bold">{scanResult.meeting_title}</span>
+                      </div>
+                    )}
 
                     <p className="font-semibold text-sm leading-relaxed mb-2">
                       {scanResult.message}

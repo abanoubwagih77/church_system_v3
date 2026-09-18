@@ -4,6 +4,7 @@ import { useLanguage } from '../../context/LanguageContext.js';
 import { api } from '../../services/api.js';
 import { User, RoleType, PermissionKey, ChurchService } from '../../types/index.js';
 import { BulkUsersModal } from './BulkUsersModal.js';
+import { getUserChurchRoleTitle, getCleanUserName } from '../../utils/userDisplay.js';
 import {
   ShieldCheck,
   Plus,
@@ -44,7 +45,7 @@ const ALL_PERMISSIONS: { key: PermissionKey; label_ar: string; label_en: string 
 ];
 
 export const UsersList: React.FC = () => {
-  const { user: currentUser, hasPermission } = useAuth();
+  const { user: currentUser, hasPermission, updateUser, refreshUser } = useAuth();
   const { t, language } = useLanguage();
 
   const [users, setUsers] = useState<any[]>([]);
@@ -97,21 +98,11 @@ export const UsersList: React.FC = () => {
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'super_admin':
-        return t('role_super_admin');
-      case 'priest':
-        return t('role_priest');
-      case 'captain':
-        return t('role_captain');
-      case 'manager':
-        return t('role_manager');
-      case 'viewer':
-        return t('role_viewer');
-      default:
-        return role;
+  const getRoleLabel = (u: any) => {
+    if (u.church_role_title && String(u.church_role_title).trim()) {
+      return u.church_role_title;
     }
+    return getUserChurchRoleTitle(u, services);
   };
 
   return (
@@ -205,7 +196,7 @@ export const UsersList: React.FC = () => {
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center gap-1 font-semibold text-stone-800 dark:text-stone-200">
                         {u.role === 'super_admin' && <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />}
-                        {getRoleLabel(u.role)}
+                        {getRoleLabel(u)}
                       </span>
                     </td>
 
@@ -295,10 +286,14 @@ export const UsersList: React.FC = () => {
             setIsAddOpen(false);
             setEditingUser(null);
           }}
-          onSuccess={() => {
+          onSuccess={async (updatedObj?: any) => {
             setIsAddOpen(false);
             setEditingUser(null);
+            if (updatedObj && currentUser && (updatedObj.id === currentUser.id || updatedObj.username === currentUser.username)) {
+              updateUser(updatedObj);
+            }
             fetchUsers();
+            await refreshUser();
           }}
         />
       )}
@@ -364,15 +359,17 @@ interface UserFormModalProps {
   user?: any;
   services: ChurchService[];
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (updatedUser?: any) => void;
 }
 
 const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, onSuccess }) => {
+  const { user: currentUser, updateUser, refreshUser } = useAuth();
   const isEdit = Boolean(user);
 
   const [username, setUsername] = useState(user?.username || '');
   const [password, setPassword] = useState('');
   const [name, setName] = useState(user?.name || '');
+  const [churchRoleTitle, setChurchRoleTitle] = useState(user?.church_role_title || '');
   const [role, setRole] = useState<RoleType>(user?.role || 'captain');
   const [scope, setScope] = useState(user?.scope || 'all');
   const [status, setStatus] = useState<'active' | 'disabled'>(user?.status || 'active');
@@ -380,9 +377,29 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // When role changes in Add mode, select sensible default permissions
+  // When role changes, update default permissions and suggest role title
   const handleRoleChange = (newRole: RoleType) => {
     setRole(newRole);
+
+    // If church role title is empty or a common default, sync it with the selected role
+    if (
+      !churchRoleTitle ||
+      churchRoleTitle === 'المدير العام' ||
+      churchRoleTitle === 'أمين الخدمة العام' ||
+      churchRoleTitle === 'أمين خدمة' ||
+      churchRoleTitle === 'خادم' ||
+      churchRoleTitle === 'أب كاهن' ||
+      churchRoleTitle === 'مسؤول إداري'
+    ) {
+      if (newRole === 'servant') setChurchRoleTitle('خادم');
+      else if (newRole === 'super_admin') setChurchRoleTitle('أمين الخدمة العام');
+      else if (newRole === 'priest') setChurchRoleTitle('أب كاهن');
+      else if (newRole === 'general_secretary') setChurchRoleTitle('أمين عام الخدمة');
+      else if (newRole === 'stage_coordinator') setChurchRoleTitle('منسق مرحلة كنسية');
+      else if (newRole === 'captain') setChurchRoleTitle('أمين خدمة');
+      else if (newRole === 'manager') setChurchRoleTitle('مسؤول إداري');
+    }
+
     if (!isEdit) {
       if (newRole === 'super_admin') {
         setPermissions(ALL_PERMISSIONS.map((p) => p.key));
@@ -404,6 +421,39 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
           'view_history',
         ]);
         setScope('all');
+      } else if (newRole === 'general_secretary') {
+        setPermissions([
+          'view_servants',
+          'add_servant',
+          'edit_servant',
+          'view_servant_details',
+          'view_users',
+          'add_user',
+          'edit_user',
+          'view_services',
+          'add_service',
+          'edit_service',
+          'view_attendance',
+          'add_attendance',
+          'edit_attendance',
+          'view_reports',
+          'export_reports',
+          'view_history',
+        ]);
+        setScope('all');
+      } else if (newRole === 'stage_coordinator') {
+        setPermissions([
+          'view_servants',
+          'edit_servant',
+          'view_servant_details',
+          'view_services',
+          'view_attendance',
+          'add_attendance',
+          'edit_attendance',
+          'view_reports',
+        ]);
+      } else if (newRole === 'servant') {
+        setPermissions(['view_servants', 'view_services', 'view_attendance', 'view_reports']);
       } else if (newRole === 'captain') {
         setPermissions([
           'view_servants',
@@ -451,6 +501,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
 
     const payload: any = {
       name: name.trim(),
+      church_role_title: churchRoleTitle.trim(),
       role,
       scope,
       status,
@@ -463,12 +514,20 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
     }
 
     try {
+      let resData: any = null;
       if (isEdit) {
-        await api.put(`/api/users/${user.id}`, payload);
+        resData = await api.put<{ success: boolean; user: any }>(`/api/users/${user.id}`, payload);
       } else {
-        await api.post('/api/users', payload);
+        resData = await api.post<{ success: boolean; user: any }>('/api/users', payload);
       }
-      onSuccess();
+
+      const updatedObj = resData?.user || { ...user, ...payload };
+      if (currentUser && user && (user.id === currentUser.id || user.username === currentUser.username)) {
+        updateUser(updatedObj);
+        await refreshUser();
+      }
+
+      onSuccess(updatedObj);
     } catch (err: any) {
       setError(err.message || 'حدث خطأ أثناء حفظ المستخدم');
     } finally {
@@ -506,6 +565,19 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="مثال: القس جرجس / أ. مينا عادل"
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                الرتبة أو الصفة الكنسية المخصصة (تظهر بين قوسين في التحية)
+              </label>
+              <input
+                type="text"
+                value={churchRoleTitle}
+                onChange={(e) => setChurchRoleTitle(e.target.value)}
+                placeholder="مثال: أب كاهن / أمين خدمة ثانوي / أمين الخدمة العام"
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
               />
             </div>
@@ -553,11 +625,14 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ user, services, onClose, 
                 onChange={(e) => handleRoleChange(e.target.value as RoleType)}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
               >
+                <option value="super_admin">المدير العام / أمين الخدمة العام (Super Admin)</option>
+                <option value="servant">خادم (Servant)</option>
+                <option value="captain">أمين خدمة / أسرة (Captain)</option>
                 <option value="priest">أب كاهن (Priest)</option>
-                <option value="captain">أمين خدمة (Captain)</option>
+                <option value="general_secretary">أمين عام الخدمة (General Secretary)</option>
+                <option value="stage_coordinator">منسق مرحلة كنسية (Stage Coordinator)</option>
                 <option value="manager">مسؤول إداري (Manager)</option>
                 <option value="viewer">مستعرض فقط (Viewer)</option>
-                <option value="super_admin">المدير العام (Super Admin)</option>
               </select>
             </div>
 

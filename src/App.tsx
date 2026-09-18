@@ -7,11 +7,13 @@ import { Sidebar } from './components/common/Sidebar.js';
 import { Dashboard } from './components/dashboard/Dashboard.js';
 import { ServantsList } from './components/servants/ServantsList.js';
 import { AttendanceSheet } from './components/attendance/AttendanceSheet.js';
+import { MeetingsManager } from './components/meetings/MeetingsManager.js';
 import { ServicesList } from './components/services/ServicesList.js';
 import { UsersList } from './components/users/UsersList.js';
 import { AuditHistory } from './components/audit/AuditHistory.js';
 import { ReportsView } from './components/reports/ReportsView.js';
 import { ServantPortal } from './components/portal/ServantPortal.js';
+import { WelcomeLanding } from './components/home/WelcomeLanding.js';
 import { LoginView } from './components/auth/LoginView.js';
 import { ScannerDeviceView } from './components/scanner/ScannerDeviceView.js';
 import { ScannerManagementModal } from './components/scanner/ScannerManagementModal.js';
@@ -47,7 +49,7 @@ function MainApp() {
   };
 
   // If user is not authenticated:
-  // Can view Servant Portal, Management Login, or Attendance Scanner
+  // Shows Church Welcome & Servants Landing with scripture verse, or Portal, Login, Scanner
   if (!user) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col transition-colors duration-200">
@@ -60,13 +62,23 @@ function MainApp() {
             <LoginView
               onSuccess={() => setCurrentTab('dashboard')}
               onOpenPortal={() => setCurrentTab('portal')}
+              onBackToHome={() => setCurrentTab('dashboard')}
             />
           )}
-          {currentTab === 'portal' && <ServantPortal />}
+          {currentTab === 'portal' && (
+            <ServantPortal onBack={() => setCurrentTab('dashboard')} />
+          )}
           {currentTab === 'scanner' && (
             <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-              <ScannerDeviceView onBackToMain={() => setCurrentTab('portal')} />
+              <ScannerDeviceView onBackToMain={() => setCurrentTab('dashboard')} />
             </div>
+          )}
+          {currentTab !== 'login' && currentTab !== 'portal' && currentTab !== 'scanner' && (
+            <WelcomeLanding
+              onNavigateToLogin={() => setCurrentTab('login')}
+              onNavigateToPortal={() => setCurrentTab('portal')}
+              onNavigateToScanner={() => setCurrentTab('scanner')}
+            />
           )}
         </main>
       </div>
@@ -107,7 +119,12 @@ function MainApp() {
               onClearInitialAdd={() => setServantsInitialAction(undefined)}
             />
           )}
-          {currentTab === 'attendance' && <AttendanceSheet />}
+          {currentTab === 'attendance' && (
+            <AttendanceSheet onNavigateToMeetings={() => setCurrentTab('meetings')} />
+          )}
+          {currentTab === 'meetings' && (
+            <MeetingsManager onNavigateToScanner={() => setCurrentTab('scanner')} />
+          )}
           {currentTab === 'scanner' && (
             <ScannerDeviceView onBackToMain={() => setCurrentTab('dashboard')} />
           )}

@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import { getDb, saveDatabase } from '../db.js';
 import { authenticateJwt, requirePermission, getClientIp, AuthenticatedRequest } from '../auth.js';
 import { logAudit } from '../audit.js';
-import { ScannerDevice, DeviceRegistrationCode, GeneralMeetingRecord } from '../../src/types/index.js';
+import { ScannerDevice, DeviceRegistrationCode, GeneralMeetingRecord, GeneralMeeting } from '../../src/types/index.js';
+import { isServantPriest } from './meetings.js';
 
 export const scannerRouter = Router();
 
@@ -318,16 +319,10 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
     return;
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const nowIso = new Date().toISOString();
-
-  // Find existing general meeting record for this servant today
-  const existingRecord = db.general_meeting_records.find(
-    (r) => r.servant_id === servant.id && r.date === today
-  );
-
   const srv = db.services.find((s) => s.id === servant.current_service_id);
   const serviceName = srv ? srv.name_ar : 'غير محدد';
+  const today = new Date().toISOString().split('T')[0];
+  const nowIso = new Date().toISOString();
 
   // Format time for Arabic display (e.g. 07:30 م)
   const formatTime = (iso: string) => {
@@ -339,10 +334,89 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
     }
   };
 
-  // CASE 1: No previous record today -> Check-in (تسجيل حضور / دخول)
+  // CHECK PRIEST EXEMPTION: Priests are not tracked for attendance or absence
+  if (isServantPriest(servant)) {
+    res.json({
+      success: true,
+      action_type: 'priest_exempt',
+      message: `قدس أبونا (${servant.full_name}) معفى من تسجيل الحضور والغياب (حفظه الله ورعاه). نطلب صلواتكم وبركتكم.`,
+      servant: {
+        id: servant.id,
+        full_name: servant.full_name,
+        phone: servant.phone,
+        service_name: serviceName,
+        current_role: servant.current_role || 'أب كاهن',
+        profile_photo: servant.profile_photo,
+      },
+      is_priest: true,
+      time: formatTime(nowIso),
+      device_name: device.name,
+    });
+    return;
+  }
+
+  // Ensure meetings list exists
+  if (!db.general_meetings) {
+    db.general_meetings = [];
+  }
+
+  // Find or automatically initiate today's meeting on first scan
+  let meeting = db.general_meetings.find(
+    (m) => m.date === today && m.status !== 'cancelled'
+  );
+
+  if (!meeting) {
+    meeting = {
+      id: `meeting_${Date.now()}_auto`,
+      title: `اجتماع الخدام الأسبوعي - ${today}`,
+      speaker: 'الأمانة العامة للخدمة',
+      date: today,
+      start_time: '12:00',
+      end_time: '14:00',
+      late_cutoff_time: '13:00',
+      status: 'active',
+      created_by_user_id: device.id,
+      created_by_name: device.name,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+    db.general_meetings.push(meeting);
+    saveDatabase();
+  }
+
+  // Determine if current scan is after the late cutoff time (e.g. 13:00)
+  // Format current Cairo/local time in HH:mm
+  let currentHourMin = '';
+  try {
+    currentHourMin = new Date().toLocaleTimeString('en-GB', {
+      timeZone: 'Africa/Cairo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    const d = new Date();
+    currentHourMin = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  const cutoff = meeting.late_cutoff_time || '13:00';
+  const isPastCutoff = currentHourMin > cutoff;
+
+  // Find existing general meeting record for this servant today/meeting
+  const existingRecord = db.general_meeting_records.find(
+    (r) => r.servant_id === servant.id && (r.meeting_id === meeting!.id || r.date === today)
+  );
+
+  // CASE 1: No previous record today -> First scan (Check-in or Late Absent)
   if (!existingRecord) {
+    const isLate = isPastCutoff;
+    const initialStatus = isLate ? 'late_absent' : 'checked_in';
+
     const newRecord: GeneralMeetingRecord = {
       id: `gmr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      meeting_id: meeting.id,
+      meeting_title: meeting.title,
+      meeting_speaker: meeting.speaker,
       servant_id: servant.id,
       servant_name: servant.full_name,
       servant_phone: servant.phone,
@@ -351,9 +425,11 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
       service_name: serviceName,
       date: today,
       check_in_time: nowIso,
-      status: 'checked_in',
+      status: initialStatus,
+      is_late: isLate,
       scanner_device_id: device.id,
       scanner_device_name: device.name,
+      notes: isLate ? `تم المسح بعد آخر موعد حضور مسموح (${cutoff})` : 'حضور في الموعد',
       created_at: nowIso,
       updated_at: nowIso,
     };
@@ -365,18 +441,45 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
 
     logAudit({
       username: device.name,
-      action: 'MEETING_CHECK_IN',
+      action: isLate ? 'MEETING_LATE_ABSENT' : 'MEETING_CHECK_IN',
       targetType: 'ATTENDANCE',
       targetId: servant.id,
       targetName: servant.full_name,
-      description: `تم تسجيل حضور الخادم (${servant.full_name}) في اجتماع الخدام العام بواسطة جهاز (${device.name}) الساعة ${formatTime(nowIso)}`,
+      description: isLate
+        ? `تم تسجيل الخادم (${servant.full_name}) "غياب" لتجاوزه آخر ميعاد للحضور (${cutoff}) الساعة ${formatTime(nowIso)}`
+        : `تم تسجيل حضور الخادم (${servant.full_name}) في اجتماع الخدام العام (${meeting.title}) الساعة ${formatTime(nowIso)}`,
       ipAddress: ip,
     });
+
+    if (isLate) {
+      res.json({
+        success: true,
+        action_type: 'late_absent',
+        warning: true,
+        message: `⚠️ تنبيه: تجاوزت الساعة آخر موعد لتسجيل الحضور (${cutoff}). تم تسجيل الخادم (${servant.full_name}) "غياب" لتأخره عن موعد الاجتماع.`,
+        meeting_title: meeting.title,
+        cutoff_time: cutoff,
+        servant: {
+          id: servant.id,
+          full_name: servant.full_name,
+          phone: servant.phone,
+          service_name: serviceName,
+          current_role: servant.current_role,
+          profile_photo: servant.profile_photo,
+        },
+        time: formatTime(nowIso),
+        check_in_time: nowIso,
+        device_name: device.name,
+      });
+      return;
+    }
 
     res.json({
       success: true,
       action_type: 'check_in',
-      message: `تم تسجيل حضور الخادم (${servant.full_name}) في اجتماع الخدام بنجاح!`,
+      message: `تم تسجيل حضور الخادم (${servant.full_name}) في اجتماع الخدام بنجاح الساعة ${formatTime(nowIso)}!`,
+      meeting_title: meeting.title,
+      cutoff_time: cutoff,
       servant: {
         id: servant.id,
         full_name: servant.full_name,
@@ -393,7 +496,9 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
   }
 
   // CASE 2: Already recorded today -> Check time difference
-  const checkInDate = new Date(existingRecord.check_in_time).getTime();
+  const checkInDate = existingRecord.check_in_time
+    ? new Date(existingRecord.check_in_time).getTime()
+    : Date.now();
   const diffMs = Date.now() - checkInDate;
   const diffMinutes = Math.floor(diffMs / (60 * 1000));
 
@@ -403,9 +508,10 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
       success: true,
       action_type: 'duplicate_warning',
       warning: true,
-      message: `تنبيه: تم تسجيل حضور هذا الخادم بالفعل منذ ${
+      message: `تنبيه: تم تسجيل هذا الخادم بالفعل منذ ${
         diffMinutes === 0 ? 'لحظات' : `${diffMinutes} دقيقة`
-      }! (لا يمكن تسجيل الحضور مرتين متتاليتين في غضون 5 دقائق).`,
+      }! (لا يمكن إعادة المسح في غضون 5 دقائق).`,
+      meeting_title: meeting.title,
       servant: {
         id: servant.id,
         full_name: servant.full_name,
@@ -414,17 +520,17 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
         current_role: servant.current_role,
         profile_photo: servant.profile_photo,
       },
-      initial_check_in: formatTime(existingRecord.check_in_time),
+      initial_check_in: existingRecord.check_in_time ? formatTime(existingRecord.check_in_time) : '',
       elapsed_minutes: diffMinutes,
       device_name: device.name,
     });
     return;
   }
 
-  // CASE 3: Scanned after 5 minutes -> Check-out (تسجيل خروج / انصراف)
+  // CASE 3: Scanned after 5 minutes -> Check-out (تسجيل انصراف / خروج)
   existingRecord.check_out_time = nowIso;
-  existingRecord.status = 'completed';
   existingRecord.duration_minutes = diffMinutes;
+  existingRecord.status = existingRecord.is_late ? 'late_absent' : 'completed';
   existingRecord.updated_at = nowIso;
 
   device.total_scans += 1;
@@ -446,7 +552,7 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
     targetType: 'ATTENDANCE',
     targetId: servant.id,
     targetName: servant.full_name,
-    description: `تم تسجيل انصراف الخادم (${servant.full_name}) من اجتماع الخدام بواسطة (${device.name}). مدة الحضور: ${durationText}`,
+    description: `تم تسجيل انصراف الخادم (${servant.full_name}) من اجتماع الخدام (${meeting.title}) بواسطة (${device.name}). مدة الحضور: ${durationText}`,
     ipAddress: ip,
   });
 
@@ -454,6 +560,7 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
     success: true,
     action_type: 'check_out',
     message: `تم تسجيل انصراف الخادم (${servant.full_name}) بنجاح. مدة التواجد بالاجتماع: ${durationText}`,
+    meeting_title: meeting.title,
     servant: {
       id: servant.id,
       full_name: servant.full_name,
@@ -462,7 +569,7 @@ scannerRouter.post('/scan', (req: Request, res: Response) => {
       current_role: servant.current_role,
       profile_photo: servant.profile_photo,
     },
-    check_in_time: formatTime(existingRecord.check_in_time),
+    check_in_time: existingRecord.check_in_time ? formatTime(existingRecord.check_in_time) : '',
     check_out_time: formatTime(nowIso),
     duration_minutes: diffMinutes,
     duration_text: durationText,

@@ -17,9 +17,14 @@ import {
   Phone,
   Cross,
   Award,
+  Home,
 } from 'lucide-react';
 
-export const ServantPortal: React.FC = () => {
+interface ServantPortalProps {
+  onBack?: () => void;
+}
+
+export const ServantPortal: React.FC<ServantPortalProps> = ({ onBack }) => {
   const { t, language } = useLanguage();
   const [nationalId, setNationalId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,6 +80,20 @@ export const ServantPortal: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {onBack && (
+        <div className="mb-4 no-print">
+          <button
+            id="btn-portal-back-to-home"
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-600 dark:text-stone-300 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>الرجوع للصفحة الرئيسية</span>
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="text-center mb-8 no-print">
         <div className="inline-flex p-3 rounded-2xl bg-amber-900/10 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-800/40 mb-3 shadow-xs">

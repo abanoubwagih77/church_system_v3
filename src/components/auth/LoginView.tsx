@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useLanguage } from '../../context/LanguageContext.js';
-import { Shield, Lock, User, AlertCircle, ArrowLeft, ArrowRight, Cross } from 'lucide-react';
+import { Shield, Lock, User, AlertCircle, ArrowLeft, ArrowRight, Cross, Home } from 'lucide-react';
 
 interface LoginViewProps {
   onSuccess: () => void;
   onOpenPortal: () => void;
+  onBackToHome?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenPortal }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenPortal, onBackToHome }) => {
   const { login } = useAuth();
   const { t, language, isRtl } = useLanguage();
   const [username, setUsername] = useState('');
@@ -121,33 +122,29 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenPortal })
           </button>
         </form>
 
-        {/* Super Admin Notice */}
-        <div className="mt-5 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/30 text-[11px] text-amber-900 dark:text-amber-300">
-          <div className="font-bold flex items-center gap-1 mb-0.5">
-            <Cross className="w-3 h-3 text-amber-700" />
-            <span>{language === 'ar' ? 'بيانات الدخول الأولية للمدير العام (Super Admin):' : 'Initial Super Admin Credentials:'}</span>
-          </div>
-          <div className="font-mono text-[11px] text-stone-700 dark:text-stone-300 space-y-0.5" dir="ltr">
-            <div>Username: <strong className="text-amber-800 dark:text-amber-200">admin</strong></div>
-            <div>Password: <strong className="text-amber-800 dark:text-amber-200">admin123456</strong></div>
-          </div>
-          <div className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-400/80">
-            {language === 'ar'
-              ? 'النظام مهيأ بدون أي بيانات وهمية (فقط حسابك كـ Super Admin). يمكنك تغيير كلمة المرور فور الدخول وإضافة الآباء والخدام.'
-              : 'Zero fake data is present. Only the initial Super Admin account is created. You can change your password and add priests and servants.'}
-          </div>
-        </div>
-
-        {/* Switch to Servant Portal button */}
-        <div className="mt-5 pt-4 border-t border-stone-100 dark:border-stone-800 text-center">
+        {/* Switch to Servant Portal and Back to Home buttons */}
+        <div className="mt-6 pt-4 border-t border-stone-100 dark:border-stone-800 flex flex-col gap-2.5 text-center">
           <button
             id="btn-login-to-portal"
+            type="button"
             onClick={onOpenPortal}
-            className="text-xs font-semibold text-stone-600 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors inline-flex items-center gap-1.5"
+            className="text-xs font-semibold text-stone-600 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <span>{language === 'ar' ? 'هل أنت خادم؟ ادخل بالرقم القومي عبر بوابة الخدام' : 'Are you a servant? Access via Servant Portal'}</span>
             {isRtl ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
           </button>
+
+          {onBackToHome && (
+            <button
+              id="btn-login-back-to-home"
+              type="button"
+              onClick={onBackToHome}
+              className="text-xs font-semibold text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-200 transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>{language === 'ar' ? 'الرجوع للصفحة الرئيسية' : 'Back to Home'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

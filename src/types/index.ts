@@ -40,6 +40,7 @@ export interface User {
   username: string;
   name: string;
   role: RoleType;
+  church_role_title?: string; // e.g. "أب كاهن", "أمين خدمة ثانوي", "أمين الخدمة العام", "خادم"
   scope: 'all' | string; // 'all' or specific service_id
   permissions: PermissionKey[];
   linked_servant_id?: string;
@@ -118,8 +119,27 @@ export interface ScannerDevice {
   registered_with_code: string;
 }
 
+export interface GeneralMeeting {
+  id: string;
+  title: string; // e.g. "اجتماع الخدام الأسبوعي - تدبير الخدمة"
+  speaker: string; // e.g. "أبونا أنجيلوس" أو "د. مجدي"
+  date: string; // YYYY-MM-DD
+  start_time: string; // e.g. "12:00"
+  end_time: string; // e.g. "14:00"
+  late_cutoff_time: string; // e.g. "13:00" (آخر موعد مسموح به لتسجيل الحضور، وبعده يُسجل غياب)
+  notes?: string;
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  created_by_user_id: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface GeneralMeetingRecord {
   id: string;
+  meeting_id?: string;
+  meeting_title?: string;
+  meeting_speaker?: string;
   servant_id: string;
   servant_name: string;
   servant_phone: string;
@@ -127,12 +147,14 @@ export interface GeneralMeetingRecord {
   service_id?: string;
   service_name?: string;
   date: string; // YYYY-MM-DD
-  check_in_time: string; // ISO string
+  check_in_time?: string; // ISO string
   check_out_time?: string; // ISO string
   duration_minutes?: number; // Calculated elapsed duration in minutes
-  status: 'checked_in' | 'completed';
-  scanner_device_id: string;
-  scanner_device_name: string;
+  status: 'present' | 'checked_in' | 'completed' | 'late_absent' | 'absent';
+  is_late?: boolean; // true if scanned after late_cutoff_time
+  is_priest?: boolean; // true if exempted priest
+  scanner_device_id?: string;
+  scanner_device_name?: string;
   notes?: string;
   created_at: string;
   updated_at: string;

@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (updatedUser: Partial<User>) => void;
   hasPermission: (permission: PermissionKey) => boolean;
   canAccessService: (serviceId?: string) => boolean;
   isSuperAdmin: boolean;
@@ -73,6 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await fetchCurrentUser();
   };
 
+  const updateUser = useCallback((updatedUser: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedUser } : null));
+  }, []);
+
   const hasPermission = useCallback(
     (permission: PermissionKey): boolean => {
       if (!user) return false;
@@ -115,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         refreshUser,
+        updateUser,
         hasPermission,
         canAccessService,
         isSuperAdmin,

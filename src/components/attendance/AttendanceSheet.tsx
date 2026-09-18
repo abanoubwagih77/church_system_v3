@@ -26,7 +26,11 @@ interface AttendanceRecordInput {
   notes: string;
 }
 
-export const AttendanceSheet: React.FC = () => {
+interface AttendanceSheetProps {
+  onNavigateToMeetings?: () => void;
+}
+
+export const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigateToMeetings }) => {
   const { user, hasPermission, canAccessService } = useAuth();
   const { t, language } = useLanguage();
 
@@ -145,6 +149,27 @@ export const AttendanceSheet: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Module Switcher Tabs */}
+      {onNavigateToMeetings && (
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-stone-100 dark:bg-stone-800/80 rounded-2xl w-fit border border-stone-200 dark:border-stone-700">
+          <button
+            type="button"
+            onClick={onNavigateToMeetings}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white transition-all flex items-center gap-2 cursor-pointer hover:bg-white/60 dark:hover:bg-stone-700/60"
+          >
+            <Calendar className="w-4 h-4 text-amber-600" />
+            <span>اجتماعات الخدام العامة (الباركود والمواعيد والمحاضرات)</span>
+          </button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-xs flex items-center gap-2"
+          >
+            <Layers className="w-4 h-4 text-amber-600" />
+            <span>كشوف حضور أسر ومراحل الخدمة</span>
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

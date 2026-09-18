@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.js';
 import { useLanguage } from '../../context/LanguageContext.js';
 import { api } from '../../services/api.js';
 import { AuditLog } from '../../types/index.js';
+import { formatUserGreeting, getCleanUserName } from '../../utils/userDisplay.js';
 import {
   Users,
   UserCheck,
@@ -12,6 +13,7 @@ import {
   Percent,
   PlusCircle,
   CalendarCheck,
+  Calendar,
   Search,
   History,
   TrendingUp,
@@ -138,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           />
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-serif">
-              {language === 'ar' ? `أهلاً بك يا ${user?.name}` : `Welcome, ${user?.name}`}
+              {language === 'ar' ? formatUserGreeting(user) : `Welcome, ${getCleanUserName(user?.name)}`}
             </h1>
             <p className="text-xs text-amber-200/90 mt-0.5">
               {t('church_name')} • {user?.scope === 'all' ? t('scope_all') : t('scope_specific')}
@@ -163,6 +165,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           >
             <PlusCircle className="w-4 h-4" />
             <span>{t('dash_action_add_servant')}</span>
+          </button>
+          <button
+            id="btn-quick-meetings"
+            onClick={() => onNavigate('meetings')}
+            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Calendar className="w-4 h-4 text-amber-300" />
+            <span>{language === 'ar' ? 'اجتماعات الخدام' : 'Meetings'}</span>
           </button>
           <button
             id="btn-quick-record-attendance"
