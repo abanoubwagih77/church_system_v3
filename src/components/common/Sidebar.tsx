@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useLanguage } from '../../context/LanguageContext.js';
+import { useTheme } from '../../context/ThemeContext.js';
 import {
   LayoutDashboard,
   Users,
@@ -14,6 +15,10 @@ import {
   ShieldAlert,
   QrCode,
   Smartphone,
+  Sun,
+  Moon,
+  Globe,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,7 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenScannerManager,
 }) => {
   const { user, hasPermission } = useAuth();
-  const { t } = useLanguage();
+  const { t, language, toggleLanguage } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
 
   if (!user) return null;
 
@@ -103,36 +109,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs lg:hidden transition-opacity duration-200"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar Drawer */}
       <aside
-        className={`max-lg:fixed max-lg:top-0 max-lg:bottom-0 max-lg:start-0 max-lg:z-50 max-lg:w-72 max-lg:shadow-2xl max-lg:transition-transform max-lg:duration-200 max-lg:ease-in-out ${
-          isOpen
-            ? 'max-lg:translate-x-0'
-            : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full'
-        } lg:static lg:block lg:w-64 lg:shrink-0 lg:border-e lg:border-stone-200 lg:dark:border-stone-800 lg:min-h-[calc(100vh-4rem)] bg-white dark:bg-stone-900 flex flex-col`}
+        className={`fixed inset-y-0 start-0 z-50 w-72 max-w-[85vw] bg-white dark:bg-stone-900 shadow-2xl flex flex-col border-e border-stone-200 dark:border-stone-800 transition-all duration-200 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'hidden lg:flex lg:static lg:w-64 lg:shrink-0 lg:shadow-none'
+        } lg:min-h-[calc(100vh-4rem)]`}
       >
         {/* Mobile Header with close button */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-stone-200 dark:border-stone-800">
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950">
           <span className="text-xs font-bold text-stone-900 dark:text-white font-serif">
             قائمة النظام الكنسي
           </span>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+            aria-label="إغلاق القائمة"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
+
         {/* User Scope Banner */}
         <div className="p-4 border-b border-stone-100 dark:border-stone-800/80 bg-stone-50/50 dark:bg-stone-950/40">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+            <span className="text-xs font-semibold text-stone-700 dark:text-stone-300 truncate">
               {user.name}
             </span>
           </div>
@@ -140,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>
               {user.role === 'super_admin' ? t('role_super_admin') : user.role}
             </span>
-            <span className="px-1.5 py-0.5 rounded-sm text-[10px] bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
+            <span className="px-1.5 py-0.5 rounded-sm text-[10px] bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold">
               {user.scope === 'all' ? t('scope_all') : t('scope_specific')}
             </span>
           </div>
@@ -158,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   id={`sidebar-nav-${item.id}`}
                   onClick={() => handleSelect(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                     isActive
                       ? 'bg-amber-700 text-white font-semibold shadow-xs'
                       : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
@@ -170,6 +177,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
         </nav>
+
+        {/* Mobile quick tools (Theme & Language) */}
+        <div className="lg:hidden p-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-xs font-semibold cursor-pointer"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span>نهاري</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-stone-700" />
+                <span>ليلي</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={toggleLanguage}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-xs font-bold cursor-pointer"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{language === 'ar' ? 'English' : 'عربي'}</span>
+          </button>
+        </div>
 
         {/* Device Scanner Manager Button for Priest / SuperAdmin / GeneralSecretary */}
         {(user.role === 'super_admin' || user.role === 'priest' || user.role === 'general_secretary') && onOpenScannerManager && (
@@ -194,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             id="sidebar-btn-open-portal"
             onClick={() => handleSelect('portal')}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-stone-600 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-stone-600 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />

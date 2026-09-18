@@ -98,20 +98,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             {user && onToggleSidebar && (
               <button
                 id="btn-toggle-sidebar"
+                type="button"
                 onClick={onToggleSidebar}
-                className="lg:hidden p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="lg:hidden p-2 rounded-xl text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800/80 hover:bg-stone-100 dark:hover:bg-stone-800 border border-stone-200 dark:border-stone-700 active:scale-95 transition-all cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center shrink-0"
                 aria-label="القائمة الجانبية"
+                title="فتح القائمة الجانبية"
               >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {isSidebarOpen ? <X className="w-5 h-5 text-amber-700 dark:text-amber-400" /> : <Menu className="w-5 h-5" />}
               </button>
             )}
 
             {/* St. George Emblem & Church Title */}
             <div
-              className="flex items-center gap-2.5 cursor-pointer min-w-0 select-none"
+              className="flex items-center gap-2 sm:gap-2.5 cursor-pointer min-w-0 select-none"
               onClick={() => setCurrentTab('dashboard')}
             >
-              <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-amber-600 shadow-sm shrink-0 bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-amber-600 shadow-sm shrink-0 bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
                 <img
                   src="/st-george.jpg"
                   alt="Saint George"
@@ -120,14 +122,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     e.currentTarget.style.display = 'none';
                   }}
                 />
-                <Cross className="w-5 h-5 text-amber-500 absolute pointer-events-none opacity-50" />
+                <Cross className="w-4 h-4 text-amber-500 absolute pointer-events-none opacity-50" />
               </div>
 
               <div className="flex flex-col min-w-0">
-                <span className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white leading-tight font-serif truncate max-w-[180px] xs:max-w-[220px] sm:max-w-xs md:max-w-md">
-                  {t('church_name')}
+                <span className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white leading-tight font-serif truncate max-w-[120px] xs:max-w-[170px] sm:max-w-xs md:max-w-md">
+                  <span className="sm:hidden">مارجرجس منية شبين</span>
+                  <span className="hidden sm:inline">{t('church_name')}</span>
                 </span>
-                <span className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 font-semibold truncate">
+                <span className="hidden sm:block text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 font-semibold truncate">
                   {t('app_title')}
                 </span>
               </div>
@@ -136,12 +139,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right / End: Tools & User Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Quick Home button when not logged in */}
+            {/* Quick Home button when not logged in - Hidden on mobile */}
             {!user && (
               <button
                 id="btn-nav-home"
                 onClick={() => setCurrentTab('dashboard')}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
+                className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
                   currentTab === 'dashboard'
                     ? 'bg-amber-700 text-white shadow-xs'
                     : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700'
@@ -149,15 +152,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="الصفحة الرئيسية والتعريف بالنظام"
               >
                 <Home className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">الرئيسية</span>
+                <span>الرئيسية</span>
               </button>
             )}
 
-            {/* Quick Switch to Servant Portal */}
+            {/* Quick Switch to Servant Portal - Hidden on mobile when logged in */}
             <button
               id="btn-nav-servant-portal"
               onClick={() => setCurrentTab('portal')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
+              className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
                 currentTab === 'portal'
                   ? 'bg-blue-700 text-white shadow-xs'
                   : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700'
@@ -165,15 +168,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="بوابة استعلام الخدام"
             >
               <Search className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">{t('nav_portal')}</span>
-              <span className="sm:hidden text-[11px]">بوابة الخدام</span>
+              <span>{t('nav_portal')}</span>
             </button>
 
-            {/* Attendance QR Scanner */}
+            {/* Attendance QR Scanner - Hidden on mobile when logged in */}
             <button
               id="btn-nav-attendance-scanner"
               onClick={() => setCurrentTab('scanner')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
+              className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
                 currentTab === 'scanner'
                   ? 'bg-purple-700 text-white shadow-xs'
                   : 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800/40'
@@ -181,64 +183,63 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="سكانر تسجيل الحضور والانصراف بالـ QR"
             >
               <QrCode className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">سكانر الحضور</span>
-              <span className="sm:hidden text-[11px]">سكانر</span>
+              <span>سكانر الحضور</span>
             </button>
 
-            {/* Dark / Light Mode Toggle with text indicator */}
+            {/* Dark / Light Mode Toggle - Hidden on mobile */}
             <button
               id="btn-nav-toggle-theme"
               onClick={toggleTheme}
               title={theme === 'dark' ? 'التحويل للوضع النهاري (Light Mode)' : 'التحويل للوضع الليلي (Dark Mode)'}
-              className="px-2 sm:px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer min-h-[38px]"
+              className="hidden md:flex px-2 sm:px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 transition-colors items-center gap-1.5 text-xs font-medium cursor-pointer min-h-[38px]"
             >
               {theme === 'dark' ? (
                 <>
                   <Sun className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="hidden md:inline text-[11px] font-semibold">نهاري</span>
+                  <span className="text-[11px] font-semibold">نهاري</span>
                 </>
               ) : (
                 <>
                   <Moon className="w-4 h-4 text-stone-700 shrink-0" />
-                  <span className="hidden md:inline text-[11px] font-semibold">ليلي</span>
+                  <span className="text-[11px] font-semibold">ليلي</span>
                 </>
               )}
             </button>
 
-            {/* Language Switcher */}
+            {/* Language Switcher - Hidden on mobile */}
             <button
               id="btn-nav-toggle-lang"
               onClick={toggleLanguage}
               title={language === 'ar' ? 'Switch to English' : 'التحويل للعربية'}
-              className="px-2 sm:px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer min-h-[38px]"
+              className="hidden md:flex px-2 sm:px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 transition-colors items-center gap-1 text-xs font-bold cursor-pointer min-h-[38px]"
             >
               <Globe className="w-3.5 h-3.5 shrink-0" />
               <span className="uppercase text-[11px]">{language === 'ar' ? 'EN' : 'عربي'}</span>
             </button>
 
-            {/* Authenticated User Status or Login button */}
+            {/* Authenticated User Status & Logout */}
             {user ? (
-              <div className="flex items-center gap-1.5 sm:gap-2 ps-1 sm:ps-2 border-s border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-1 sm:gap-2 ps-1 sm:ps-2 border-s border-stone-200 dark:border-stone-800">
                 <button
                   type="button"
                   id="btn-nav-profile"
                   onClick={openProfileModal}
                   title={language === 'ar' ? 'تعديل الملف الشخصي والصفة الكنسية' : 'Edit profile & role'}
-                  className="flex flex-col text-right hover:bg-stone-100 dark:hover:bg-stone-800/80 px-2 py-1 rounded-xl transition-all cursor-pointer group"
+                  className="flex flex-col text-right hover:bg-stone-100 dark:hover:bg-stone-800/80 px-2 py-1 rounded-xl transition-all cursor-pointer group max-w-[125px] sm:max-w-[200px]"
                 >
-                  <span className="text-xs font-bold text-stone-900 dark:text-white leading-tight group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                  <span className="text-xs font-bold text-stone-900 dark:text-white leading-tight group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors truncate">
                     {getCleanUserName(user.name)}
                   </span>
-                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
-                    <span>{getUserChurchRoleTitle(user)}</span>
-                    <Edit3 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1 truncate">
+                    <span className="truncate">{getUserChurchRoleTitle(user)}</span>
+                    <Edit3 className="w-2.5 h-2.5 opacity-60 shrink-0" />
                   </span>
                 </button>
                 <button
                   id="btn-nav-logout"
                   onClick={logout}
                   title={t('nav_logout')}
-                  className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
+                  className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center shrink-0"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -251,8 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="px-3 py-1.5 rounded-xl bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer min-h-[38px]"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{t('nav_login')}</span>
-                  <span className="sm:hidden text-[11px]">دخول</span>
+                  <span>دخول</span>
                 </button>
               )
             )}
