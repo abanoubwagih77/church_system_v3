@@ -28,8 +28,11 @@ export interface DatabaseSchema {
   rate_limits: Record<string, { count: number; reset_time: number }>;
 }
 
-const DB_DIR = path.join(process.cwd(), 'data');
+// In Vercel serverless environment, the filesystem is read-only except for /tmp
+const isVercel = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DB_DIR = isVercel ? '/tmp' : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'database.json');
+const SEED_FILE = path.join(process.cwd(), 'data', 'database.json');
 
 // Ensure directory exists
 if (!fs.existsSync(DB_DIR)) {
@@ -39,9 +42,20 @@ if (!fs.existsSync(DB_DIR)) {
 let dbData: DatabaseSchema;
 
 export function initDatabase(): void {
-  if (fs.existsSync(DB_FILE)) {
+  // If in Vercel and /tmp/database.json doesn't exist yet, copy from seed data
+  if (isVercel && !fs.existsSync(DB_FILE) && fs.existsSync(SEED_FILE)) {
     try {
-      const content = fs.readFileSync(DB_FILE, 'utf-8');
+      fs.copyFileSync(SEED_FILE, DB_FILE);
+    } catch (e) {
+      console.warn('Could not copy seed database to /tmp:', e);
+    }
+  }
+
+  const targetFile = fs.existsSync(DB_FILE) ? DB_FILE : (fs.existsSync(SEED_FILE) ? SEED_FILE : null);
+
+  if (targetFile && fs.existsSync(targetFile)) {
+    try {
+      const content = fs.readFileSync(targetFile, 'utf-8');
       dbData = JSON.parse(content);
       if (!dbData.scanner_devices) dbData.scanner_devices = [];
       if (!dbData.registration_codes) dbData.registration_codes = [];
