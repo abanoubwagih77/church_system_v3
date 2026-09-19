@@ -20,6 +20,7 @@ import {
   Clock,
   ArrowUpRight,
   ShieldAlert,
+  Cake,
 } from 'lucide-react';
 
 interface DashboardStatsResponse {
@@ -173,6 +174,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           >
             <Calendar className="w-4 h-4 text-amber-300" />
             <span>{language === 'ar' ? 'اجتماعات الخدام' : 'Meetings'}</span>
+          </button>
+          <button
+            id="btn-quick-birthdays"
+            onClick={() => onNavigate('birthdays')}
+            className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-all border border-amber-400/30 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Cake className="w-4 h-4 text-amber-300" />
+            <span>{language === 'ar' ? 'أعياد الميلاد 🎉' : 'Birthdays'}</span>
           </button>
           <button
             id="btn-quick-record-attendance"

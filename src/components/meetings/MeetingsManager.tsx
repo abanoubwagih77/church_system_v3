@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext.js';
 import { useLanguage } from '../../context/LanguageContext.js';
 import { api } from '../../services/api.js';
 import { GeneralMeeting } from '../../types/index.js';
+import { PrintAttendanceModal } from './PrintAttendanceModal.js';
+import { DeleteMeetingModal } from './DeleteMeetingModal.js';
 import {
   Calendar,
   Clock,
@@ -20,6 +22,9 @@ import {
   Mic2,
   Trash2,
   Edit,
+  Edit2,
+  X,
+  AlertCircle,
   Sparkles,
   QrCode,
   Cross,
@@ -76,6 +81,18 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
   const [creating, setCreating] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>('');
 
+  // Edit Meeting State
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editing, setEditing] = useState<boolean>(false);
+  const [editFormError, setEditFormError] = useState<string>('');
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editSpeaker, setEditSpeaker] = useState<string>('');
+  const [editDate, setEditDate] = useState<string>('');
+  const [editStartTime, setEditStartTime] = useState<string>('12:00');
+  const [editEndTime, setEditEndTime] = useState<string>('14:00');
+  const [editCutoffTime, setEditCutoffTime] = useState<string>('13:00');
+  const [editNotes, setEditNotes] = useState<string>('');
+
   // Form Fields
   const [title, setTitle] = useState<string>('');
   const [speaker, setSpeaker] = useState<string>('');
@@ -89,24 +106,29 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'present' | 'late_absent' | 'absent' | 'priest'>('all');
 
+  // Modals for Delete & Print
+  const [meetingToDelete, setMeetingToDelete] = useState<GeneralMeeting | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+
   // Load all meetings
   const loadMeetings = useCallback(async () => {
     try {
       setLoadingList(true);
       const res = await api.get<{ success: boolean; meetings: GeneralMeeting[] }>('/api/meetings');
-      if (res.success) {
-        setMeetings(res.meetings);
-        // Automatically select the latest meeting if none selected
-        if (res.meetings.length > 0 && !selectedMeetingId) {
-          setSelectedMeetingId(res.meetings[0].id);
-        }
+      const list = Array.isArray(res?.meetings) ? res.meetings : [];
+      setMeetings(list);
+      // Automatically select the latest meeting if none selected or selected not in list
+      if (list.length > 0) {
+        setSelectedMeetingId((prev) => (prev && list.some((m) => m.id === prev) ? prev : list[0].id));
       }
     } catch (err) {
       console.error('Error loading meetings:', err);
+      setMeetings([]);
     } finally {
       setLoadingList(false);
     }
-  }, [selectedMeetingId]);
+  }, []);
 
   useEffect(() => {
     loadMeetings();
@@ -117,8 +139,11 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
     try {
       setLoadingDetails(true);
       const res = await api.get<MeetingDetailsResponse>(`/api/meetings/${id}`);
-      if (res.success) {
-        setMeetingDetails(res);
+      if (res && res.success && res.meeting) {
+        setMeetingDetails({
+          ...res,
+          roster: Array.isArray(res.roster) ? res.roster : [],
+        });
       }
     } catch (err) {
       console.error('Error loading meeting details:', err);
@@ -132,6 +157,59 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
       loadMeetingDetails(selectedMeetingId);
     }
   }, [selectedMeetingId, loadMeetingDetails]);
+
+  // Open Edit Meeting Modal with current values
+  const openEditModal = (meeting: GeneralMeeting) => {
+    setEditTitle(meeting.title || '');
+    setEditSpeaker(meeting.speaker || '');
+    setEditDate(meeting.date || '');
+    setEditStartTime(meeting.start_time || '12:00');
+    setEditEndTime(meeting.end_time || '14:00');
+    setEditCutoffTime(meeting.late_cutoff_time || '13:00');
+    setEditNotes(meeting.notes || '');
+    setEditFormError('');
+    setShowEditModal(true);
+  };
+
+  // Handle Edit Meeting Submit
+  const handleUpdateMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMeetingId) return;
+    setEditFormError('');
+
+    if (!editTitle.trim()) {
+      setEditFormError('يرجى إدخال عنوان الاجتماع أو موضوع الكلمة');
+      return;
+    }
+    if (!editSpeaker.trim()) {
+      setEditFormError('يرجى إدخال اسم المحاضر / المتكلم');
+      return;
+    }
+
+    try {
+      setEditing(true);
+      const res = await api.put<{ success: boolean; meeting: GeneralMeeting }>(`/api/meetings/${selectedMeetingId}`, {
+        title: editTitle.trim(),
+        speaker: editSpeaker.trim(),
+        date: editDate,
+        start_time: editStartTime,
+        end_time: editEndTime,
+        late_cutoff_time: editCutoffTime,
+        notes: editNotes.trim(),
+      });
+
+      if (res.success) {
+        setShowEditModal(false);
+        await loadMeetings();
+        await loadMeetingDetails(selectedMeetingId);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'فشل تعديل موعد الاجتماع';
+      setEditFormError(msg);
+    } finally {
+      setEditing(false);
+    }
+  };
 
   // Handle Create Meeting Submit
   const handleCreateMeeting = async (e: React.FormEvent) => {
@@ -175,20 +253,35 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
     }
   };
 
-  // Handle Delete Meeting
-  const handleDeleteMeeting = async (id: string, meetingTitle: string) => {
-    if (!window.confirm(`هل أنت متأكد من حذف اجتماع: "${meetingTitle}" وسجل الحضور المرتبط به؟`)) {
-      return;
-    }
+  // Handle Delete Meeting Confirm
+  const handleConfirmDelete = async () => {
+    if (!meetingToDelete) return;
 
     try {
-      await api.delete(`/api/meetings/${id}`);
-      setSelectedMeetingId(null);
-      setMeetingDetails(null);
-      loadMeetings();
+      setIsDeleting(true);
+      const targetId = meetingToDelete.id;
+      await api.delete(`/api/meetings/${targetId}`);
+
+      setMeetings((prev) => prev.filter((m) => m.id !== targetId));
+
+      if (selectedMeetingId === targetId) {
+        setSelectedMeetingId(null);
+        setMeetingDetails(null);
+      }
+      setMeetingToDelete(null);
+      await loadMeetings();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'فشل حذف الاجتماع';
-      alert(msg);
+      console.error('Failed to delete meeting:', err);
+      // Even if network error, local persistence handles it
+      const targetId = meetingToDelete.id;
+      setMeetings((prev) => prev.filter((m) => m.id !== targetId));
+      if (selectedMeetingId === targetId) {
+        setSelectedMeetingId(null);
+        setMeetingDetails(null);
+      }
+      setMeetingToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -359,11 +452,10 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
               const isToday = m.date === new Date().toISOString().split('T')[0];
 
               return (
-                <button
+                <div
                   key={m.id}
-                  type="button"
                   onClick={() => setSelectedMeetingId(m.id)}
-                  className={`shrink-0 text-right p-3 rounded-xl border transition-all cursor-pointer min-w-[200px] max-w-[260px] ${
+                  className={`group relative shrink-0 text-right p-3 rounded-xl border transition-all cursor-pointer min-w-[200px] max-w-[260px] ${
                     isSelected
                       ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 shadow-xs ring-2 ring-amber-500/20'
                       : 'bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800'
@@ -373,11 +465,24 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
                     <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
                       {m.date}
                     </span>
-                    {isToday && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        اجتماع اليوم
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {isToday && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          اجتماع اليوم
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMeetingToDelete(m);
+                        }}
+                        className="opacity-60 group-hover:opacity-100 p-1 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all cursor-pointer"
+                        title="حذف هذا الاجتماع"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="font-bold text-xs text-stone-900 dark:text-white truncate">
                     {m.title}
@@ -392,7 +497,7 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
                       آخر حضور: {m.late_cutoff_time}
                     </span>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -429,14 +534,25 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {hasPermission('edit_attendance', 'full_access') && (
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(meetingDetails.meeting)}
+                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="تعديل موعد الاجتماع وآخر ميعاد للحضور"
+                  >
+                    <Edit2 className="w-4 h-4 text-amber-600" />
+                    <span>تعديل المواعيد ووقت الغياب</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={handlePrint}
-                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  title="طباعة كشف الحضور"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="طباعة كشف الحضور الرسمي"
                 >
                   <Printer className="w-4 h-4" />
-                  <span className="hidden sm:inline">طباعة الكشف</span>
+                  <span>طباعة الكشف</span>
                 </button>
                 <button
                   type="button"
@@ -447,16 +563,15 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">تصدير Excel</span>
                 </button>
-                {hasPermission('delete_attendance', 'full_access') && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMeeting(meetingDetails.meeting.id, meetingDetails.meeting.title)}
-                    className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                    title="حذف هذا الاجتماع"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setMeetingToDelete(meetingDetails.meeting)}
+                  className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="حذف هذا الاجتماع"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>حذف الاجتماع</span>
+                </button>
               </div>
             </div>
 
@@ -890,6 +1005,190 @@ export const MeetingsManager: React.FC<{ onNavigateToScanner?: () => void }> = (
           </div>
         </div>
       )}
+
+      {/* Edit Meeting Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between bg-stone-50/50 dark:bg-stone-800/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400">
+                  <Edit2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900 dark:text-white">
+                    تعديل بيانات الاجتماع وموعد الغياب
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    يمكنك تعديل وقت الحضور ووقت الغياب التلقائي (Cut-off Time)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body / Form */}
+            <form onSubmit={handleUpdateMeeting} className="p-4 sm:p-5 space-y-4">
+              {editFormError && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editFormError}</span>
+                </div>
+              )}
+
+              {/* Title & Subject */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  موضوع الكلمة / عنوان الاجتماع <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="مثال: أهمية الصلاة في حياة الخادم"
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Speaker */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  المحاضر / المتكلم في اليوم <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editSpeaker}
+                  onChange={(e) => setEditSpeaker(e.target.value)}
+                  placeholder="مثال: أبونا مرقس / أ. مينا عاطف"
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  تاريخ الاجتماع <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Times Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    وقت بدء الاجتماع <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    وقت انتهاء الاجتماع <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Late Cutoff Time Field */}
+              <div className="bg-amber-50/90 dark:bg-amber-950/50 p-4 rounded-xl border border-amber-300 dark:border-amber-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-amber-900 dark:text-amber-200">
+                    آخر موعد مسموح به لتسجيل الحضور (Cut-off Time) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-md">
+                    الموعد الحالي: {editCutoffTime}
+                  </span>
+                </div>
+                <input
+                  type="time"
+                  required
+                  value={editCutoffTime}
+                  onChange={(e) => setEditCutoffTime(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-stone-900 border border-amber-400 dark:border-amber-600 rounded-xl text-sm font-bold text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed pt-1">
+                  ⏱️ <strong>تعديل وقت الغياب:</strong> يمكنك ضبط الموعد بدقة (مثلاً 01:15 م أو 01:30 م). أي عملية مسح QR تتم بعد هذا الوقت ستعتبر <strong>غياب تأخير</strong>.
+                </p>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  ملاحظات إضافية (اختياري)
+                </label>
+                <textarea
+                  rows={2}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="أي تنبيهات أو توجيهات خاصة بالاجتماع..."
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl text-xs text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                />
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={editing}
+                  className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  {editing ? 'جاري التعديل...' : 'حفظ التعديلات'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Meeting Confirmation Modal */}
+      <DeleteMeetingModal
+        isOpen={Boolean(meetingToDelete)}
+        meeting={meetingToDelete}
+        onClose={() => setMeetingToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        loading={isDeleting}
+      />
+
+      {/* Official Print Attendance Sheet Modal */}
+      <PrintAttendanceModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        data={meetingDetails}
+      />
     </div>
   );
 };

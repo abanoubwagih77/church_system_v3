@@ -11,6 +11,7 @@ import { auditRouter } from './routes/audit.js';
 import { reportsRouter } from './routes/reports.js';
 import { scannerRouter } from './routes/scanner.js';
 import { meetingsRouter } from './routes/meetings.js';
+import { syncRouter } from './routes/sync.js';
 
 export function createExpressApp() {
   // Ensure DB initialized
@@ -43,6 +44,7 @@ export function createExpressApp() {
   app.use('/api/reports', reportsRouter);
   app.use('/api/scanner', scannerRouter);
   app.use('/api/meetings', meetingsRouter);
+  app.use('/api/sync', syncRouter);
 
   return app;
 }

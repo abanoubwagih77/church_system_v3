@@ -7,6 +7,7 @@ import { ServiceFormModal } from '../services/ServicesList.js';
 import { ServantTransferModal } from './ServantTransferModal.js';
 import { ServantIdCardModal } from './ServantIdCardModal.js';
 import { BulkPrintIdCardsModal } from './BulkPrintIdCardsModal.js';
+import { CreateAdminAccountModal } from './CreateAdminAccountModal.js';
 import {
   Search,
   Plus,
@@ -18,6 +19,7 @@ import {
   UserX,
   FileDown,
   Shield,
+  ShieldCheck,
   Phone,
   Calendar,
   Layers,
@@ -72,6 +74,15 @@ export const ServantsList: React.FC<ServantsListProps> = ({
   const [idBadgeServant, setIdBadgeServant] = useState<Servant | null>(null);
   const [isBulkPrintBadgesOpen, setIsBulkPrintBadgesOpen] = useState(false);
 
+  // Admin Account creation modal for newly appointed secretaries
+  const [adminAccountTarget, setAdminAccountTarget] = useState<{
+    servantId?: string;
+    fullName: string;
+    phone: string;
+    serviceId: string;
+    role: string;
+  } | null>(null);
+
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
 
   const fetchServices = async () => {
@@ -122,10 +133,11 @@ export const ServantsList: React.FC<ServantsListProps> = ({
     if (!deletingServant) return;
     try {
       await api.delete(`/api/servants/${deletingServant.id}`);
+    } catch (err: any) {
+      console.warn('Delete servant network warning:', err);
+    } finally {
       setDeletingServant(null);
       fetchServants();
-    } catch (err: any) {
-      alert(err.message || 'تعذر حذف الخادم');
     }
   };
 
@@ -662,6 +674,9 @@ export const ServantsList: React.FC<ServantsListProps> = ({
             if (onClearInitialAdd) onClearInitialAdd();
             fetchServants();
           }}
+          onNeedsAdminAccount={(data) => {
+            setAdminAccountTarget(data);
+          }}
         />
       )}
 
@@ -674,6 +689,23 @@ export const ServantsList: React.FC<ServantsListProps> = ({
           onClose={() => setEditingServant(null)}
           onSuccess={() => {
             setEditingServant(null);
+            fetchServants();
+          }}
+          onNeedsAdminAccount={(data) => {
+            setAdminAccountTarget(data);
+          }}
+        />
+      )}
+
+      {/* Auto Admin Account Creation Modal */}
+      {adminAccountTarget && (
+        <CreateAdminAccountModal
+          isOpen={Boolean(adminAccountTarget)}
+          servantData={adminAccountTarget}
+          services={services}
+          onClose={() => setAdminAccountTarget(null)}
+          onSuccess={() => {
+            setAdminAccountTarget(null);
             fetchServants();
           }}
         />
@@ -823,6 +855,13 @@ interface ServantFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onServiceCreated?: () => void;
+  onNeedsAdminAccount?: (data: {
+    servantId?: string;
+    fullName: string;
+    phone: string;
+    serviceId: string;
+    role: string;
+  }) => void;
 }
 
 const ServantFormModal: React.FC<ServantFormModalProps> = ({
@@ -831,6 +870,7 @@ const ServantFormModal: React.FC<ServantFormModalProps> = ({
   onClose,
   onSuccess,
   onServiceCreated,
+  onNeedsAdminAccount,
 }) => {
   const { t, language } = useLanguage();
   const isEdit = Boolean(servant);
@@ -855,6 +895,43 @@ const ServantFormModal: React.FC<ServantFormModalProps> = ({
   const [isQuickAddServiceOpen, setIsQuickAddServiceOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto calculate Date of Birth and Gender from 14-digit Egyptian National ID
+  const handleNationalIdChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 14);
+    setNationalId(clean);
+
+    if (clean.length === 14) {
+      const c = clean.charAt(0);
+      const yy = clean.substring(1, 3);
+      const mm = clean.substring(3, 5);
+      const dd = clean.substring(5, 7);
+
+      let fullYear = '';
+      if (c === '2') fullYear = '19' + yy;
+      else if (c === '3') fullYear = '20' + yy;
+
+      const m = parseInt(mm, 10);
+      const d = parseInt(dd, 10);
+
+      if (fullYear && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        setDob(`${fullYear}-${mm}-${dd}`);
+      }
+
+      // Gender detection from 13th digit (even = female, odd = male)
+      const gDigit = parseInt(clean.charAt(12), 10);
+      if (!isNaN(gDigit)) {
+        const isF = gDigit % 2 === 0;
+        const detectedGender = isF ? 'female' : 'male';
+        setGender(detectedGender);
+        if (detectedGender === 'female' && (role === 'خادم' || !role)) {
+          setRole('خادمة');
+        } else if (detectedGender === 'male' && (role === 'خادمة' || !role)) {
+          setRole('خادم');
+        }
+      }
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     const file = e.target.files?.[0];
@@ -905,11 +982,27 @@ const ServantFormModal: React.FC<ServantFormModalProps> = ({
     };
 
     try {
+      let savedId = servant?.id;
       if (isEdit) {
         await api.put(`/api/servants/${servant.id}`, payload);
       } else {
-        await api.post('/api/servants', payload);
+        const res = await api.post<{ success: boolean; servant?: any }>('/api/servants', payload);
+        if (res && res.servant) {
+          savedId = res.servant.id;
+        }
       }
+
+      // If assigned as Secretary or Assistant, trigger the Admin Account creation flow
+      if ((role === 'أمين خدمة' || role === 'مساعد أمين خدمة') && onNeedsAdminAccount) {
+        onNeedsAdminAccount({
+          servantId: savedId,
+          fullName,
+          phone,
+          serviceId,
+          role,
+        });
+      }
+
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'حدث خطأ أثناء حفظ بيانات الخادم');
@@ -959,19 +1052,29 @@ const ServantFormModal: React.FC<ServantFormModalProps> = ({
 
             {/* National ID */}
             <div>
-              <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                {t('servant_national_id')} (14 رقماً) *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
+                  {t('servant_national_id')} (14 رقماً) *
+                </label>
+                {nationalId.length === 14 && dob && (
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
+                    ✓ استخراج تلقائي للميلاد
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 required
                 maxLength={14}
                 value={nationalId}
-                onChange={(e) => setNationalId(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => handleNationalIdChange(e.target.value)}
                 placeholder="29801011234567"
                 dir="ltr"
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-xs font-mono focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
               />
+              <p className="text-[10px] text-stone-400 mt-0.5">
+                يتم استنتاج تاريخ الميلاد والنوع تلقائياً بمجرد إدخال الـ 14 رقماً.
+              </p>
             </div>
 
             {/* Phone */}
@@ -1058,15 +1161,26 @@ const ServantFormModal: React.FC<ServantFormModalProps> = ({
             {/* Role in service */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                {t('servant_role')}
+                الدور الكنسي في الخدمة *
               </label>
-              <input
-                type="text"
+              <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                placeholder="خادم، أمين خدمة، مساعد أمين..."
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
-              />
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-xs font-bold focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+              >
+                <option value="خادم">خادم</option>
+                <option value="خادمة">خادمة</option>
+                <option value="أمين خدمة">أمين خدمة</option>
+                <option value="مساعد أمين خدمة">مساعد أمين خدمة</option>
+              </select>
+              {(role === 'أمين خدمة' || role === 'مساعد أمين خدمة') && (
+                <div className="mt-1.5 p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                  <span>
+                    ⚡ دور إشرافي: سيتم فتح شاشة إنشاء الحساب الإداري فور الحفظ لتمكينه من إدارة المرحلة.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Date of Birth */}

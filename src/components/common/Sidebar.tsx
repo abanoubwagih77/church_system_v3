@@ -19,6 +19,7 @@ import {
   Moon,
   Globe,
   X,
+  Cake,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -53,6 +54,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'servants',
       label: t('nav_servants'),
       icon: Users,
+      visible: hasPermission('view_servants'),
+    },
+    {
+      id: 'birthdays',
+      label: 'أعياد ميلاد الخدام 🎉',
+      icon: Cake,
       visible: hasPermission('view_servants'),
     },
     {

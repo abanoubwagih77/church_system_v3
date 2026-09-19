@@ -18,6 +18,8 @@ import { LoginView } from './components/auth/LoginView.js';
 import { ScannerDeviceView } from './components/scanner/ScannerDeviceView.js';
 import { ScannerManagementModal } from './components/scanner/ScannerManagementModal.js';
 import { ForceChangePasswordModal } from './components/auth/ForceChangePasswordModal.js';
+import { UpcomingBirthdays } from './components/servants/UpcomingBirthdays.js';
+import { ChurchFooter } from './components/common/ChurchFooter.js';
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -81,6 +83,7 @@ function MainApp() {
             />
           )}
         </main>
+        {currentTab !== 'scanner' && <ChurchFooter />}
       </div>
     );
   }
@@ -119,6 +122,7 @@ function MainApp() {
               onClearInitialAdd={() => setServantsInitialAction(undefined)}
             />
           )}
+          {currentTab === 'birthdays' && <UpcomingBirthdays />}
           {currentTab === 'attendance' && (
             <AttendanceSheet onNavigateToMeetings={() => setCurrentTab('meetings')} />
           )}
@@ -135,6 +139,9 @@ function MainApp() {
           {currentTab === 'portal' && <ServantPortal />}
         </main>
       </div>
+
+      {/* Church Footer & Social Media & Copyright */}
+      {currentTab !== 'scanner' && <ChurchFooter />}
 
       {/* Scanner Management Modal for Priest / Admin */}
       <ScannerManagementModal

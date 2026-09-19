@@ -343,7 +343,7 @@ meetingsRouter.put(
 meetingsRouter.delete(
   '/:id',
   authenticateJwt,
-  requirePermission('delete_attendance', 'full_access'),
+  requirePermission('delete_attendance', 'edit_attendance', 'full_access'),
   (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
     const { id } = req.params;

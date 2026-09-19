@@ -37,14 +37,18 @@ export const ServantIdCardModal: React.FC<ServantIdCardModalProps> = ({
   };
 
   const handlePrint = () => {
-    // Print window with targeted CSS
     const cardEl = document.getElementById(`badge-preview-${servant.id}`);
     if (!cardEl) {
       window.print();
       return;
     }
 
-    const printWindow = window.open('', '_blank');
+    // Collect all stylesheets and style tags from current document
+    const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    const printWindow = window.open('', '_blank', 'width=700,height=800');
     if (!printWindow) {
       window.print();
       return;
@@ -52,47 +56,79 @@ export const ServantIdCardModal: React.FC<ServantIdCardModalProps> = ({
 
     const cardHtml = cardEl.outerHTML;
 
+    printWindow.document.open();
     printWindow.document.write(`
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
         <head>
           <meta charset="utf-8" />
           <title>كارنيه خادم - ${servant.full_name}</title>
+          ${headStyles}
           <style>
             @page {
-              size: auto;
+              size: A4 portrait;
               margin: 15mm;
             }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box;
+            }
             body {
-              font-family: system-ui, -apple-system, sans-serif;
+              font-family: 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               margin: 0;
               padding: 20px;
-              background: #fff;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              background: #ffffff !important;
             }
             .instructions {
-              font-size: 12px;
-              color: #666;
-              margin-bottom: 20px;
+              font-size: 13px;
+              font-weight: bold;
+              color: #78350f;
+              margin-bottom: 18px;
               text-align: center;
+              padding: 8px 16px;
+              background: #fef3c7;
+              border-radius: 8px;
+              border: 1px solid #fde68a;
             }
             .card-wrapper {
-              border: 1px dashed #bbb;
-              padding: 6px;
-              border-radius: 28px;
               display: inline-block;
+              padding: 8px;
+              border: 2px dashed #d97706;
+              border-radius: 32px;
+              background: #fff;
+              page-break-inside: avoid;
+            }
+            /* Explicit fallback styling to ensure card renders even if external CSS is stripped */
+            .servant-id-card {
+              width: 320px !important;
+              min-height: 480px !important;
+              border-radius: 24px !important;
+              overflow: hidden !important;
+              background: #1c1917 !important;
+              color: #ffffff !important;
+              border: 2px solid #f59e0b !important;
+              display: flex !important;
+              flex-direction: column !important;
+              position: relative !important;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              body {
+                padding: 10mm 0 !important;
+              }
             }
           </style>
-          <link rel="stylesheet" href="/src/index.css" />
         </head>
         <body>
-          <div class="instructions">
-            كنيسة الشهيد العظيم مارجرجس بمنية شبين القناطر - كارنيه خادم معتمد للطباعة والتغليف
+          <div class="instructions no-print">
+            ✝️ كنيسة الشهيد العظيم مارجرجس بمنية شبين القناطر — كارنيه خادم معتمد (جاهز للطباعة والقص والتغليف)
           </div>
           <div class="card-wrapper">
             ${cardHtml}
@@ -100,6 +136,7 @@ export const ServantIdCardModal: React.FC<ServantIdCardModalProps> = ({
           <script>
             window.onload = function() {
               setTimeout(function() {
+                window.focus();
                 window.print();
               }, 400);
             };

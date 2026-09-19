@@ -77,11 +77,12 @@ export const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigateToMe
         `/api/attendance/sheet?service_id=${selectedServiceId}&date=${selectedDate}`
       );
 
-      const mapped: AttendanceRecordInput[] = res.sheet.map((item) => ({
+      const sheetList = Array.isArray(res?.sheet) ? res.sheet : [];
+      const mapped: AttendanceRecordInput[] = sheetList.map((item) => ({
         servant_id: item.servant_id,
-        servant_name: item.full_name,
-        phone: item.phone,
-        cumulative_rate: item.attendance_rate,
+        servant_name: item.full_name || item.servant_name || 'خادم',
+        phone: item.phone || '',
+        cumulative_rate: item.attendance_rate !== undefined ? item.attendance_rate : 100,
         status: item.status || 'present', // default to present if not marked
         notes: item.notes || '',
       }));
